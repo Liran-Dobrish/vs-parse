@@ -268,3 +268,4 @@ test/data/**/bin
 test/data/**/obj
 package-lock.json
 test-results.xml
+dist/
