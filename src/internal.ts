@@ -1,23 +1,28 @@
-'use strict';
+import * as fs from 'fs-extra'
+import isBuffer from 'is-buffer'
+import * as os from 'os'
+import * as path from 'path'
+import * as upath from 'upath'
+import { StringDecoder } from 'string_decoder'
 
-const fs = require('fs-extra');
-const isBuffer = require('is-buffer');
-const os = require('os');
-const path = require('path');
-const upath = require('upath');
-const StringDecoder = require('string_decoder').StringDecoder;
-
-const defaultOptions = {
-  encoding: 'utf-8'
+export class ParseOptions {
+  deepParse: boolean = false
+  encoding: BufferEncoding = 'utf-8'
+  dirRoot: string | undefined = undefined
 }
 
-const fileExistsSync = (filePath) => fs.pathExistsSync(filePath);
-const fileExists = (filePath) => fs.pathExists(filePath);
+export function fileExistsSync(filePath: string): boolean {
+  return fs.pathExistsSync(filePath);
+}
 
-const getFileDirectory = (filePath, options) => {
-  const dir = (isVsFileContents(filePath) || isBuffer(filePath))
-                  ? options.dirRoot
-                  : path.dirname(filePath);
+export function fileExists(filePath: string): Promise<boolean> {
+  return fs.pathExists(filePath);
+}
+
+export function getFileDirectory(filePath: string, options: ParseOptions): string {
+  let dir: string | undefined = (isVsFileContents(filePath) || isBuffer(filePath))
+    ? options.dirRoot
+    : path.dirname(filePath);
 
   if (!dir) {
     throw new Error('Could not determine root directory. Please specify \'dirRoot\' if doing a deep parse');
@@ -26,21 +31,23 @@ const getFileDirectory = (filePath, options) => {
   return dir;
 }
 
-const normalizePath = (pathStr) => os.platform() == 'win32' ? pathStr : upath.normalize(pathStr);
+export function normalizePath(pathStr: string): string {
+  return os.platform() == 'win32' ? pathStr : upath.normalize(pathStr);
+}
 
-const isVsFileContents = (file) => {
+function isVsFileContents(file: string): boolean {
   // Naive way to determine if string is a path or vs proj/sln file
   return (typeof file === 'string' && /\r|\n/.test(file));
 };
 
-const getFileContentsOrFail = (file, options) => {
+export function getFileContentsOrFail(file: string, options: ParseOptions | undefined = undefined): Promise<string> {
   return new Promise((resolve, reject) => {
-    if(isVsFileContents(file)) {
+    if (isVsFileContents(file)) {
       resolve(file);
       return;
     }
 
-    const myOptions = (options && Object.assign({}, options, defaultOptions)) || defaultOptions;
+    const myOptions = (options && Object.assign({}, options, { encoding: 'utf-8' })) || { encoding: 'utf-8' };
 
     if (isBuffer(file)) {
       const decoder = new StringDecoder(myOptions.encoding);
@@ -61,12 +68,15 @@ const getFileContentsOrFail = (file, options) => {
   });
 }
 
-const getFileContentsOrFailSync = (file, options) => {
-  if(isVsFileContents(file)) {
+export function getFileContentsOrFailSync(file: string, options: ParseOptions | undefined = undefined) {
+  if (isVsFileContents(file)) {
     return file;
   }
 
-  const myOptions = (options && Object.assign({}, options, defaultOptions)) || defaultOptions;
+  let myOptions: ParseOptions = new ParseOptions();
+  if (options !== undefined) {
+    myOptions = Object.assign({}, options, myOptions);
+  }
 
   if (isBuffer(file)) {
     const decoder = new StringDecoder(myOptions.encoding);
@@ -83,12 +93,3 @@ const getFileContentsOrFailSync = (file, options) => {
     }
   }
 }
-
-module.exports = {
-  getFileContentsOrFailSync,
-  getFileContentsOrFail,
-  fileExistsSync,
-  fileExists,
-  normalizePath,
-  getFileDirectory
-};

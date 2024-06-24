@@ -1,18 +1,41 @@
-'use strict';
+import parseXml from 'xml-parser';
+import * as path from 'path';
+import * as helpers from './internal';
 
-const parseXml = require('xml-parser');
-const path = require('path');
-const helpers = require('./internal');
+class CodeFile {
+  fileName: string = ''
+}
 
-const parseCodeFile = (node) => {
-  const fileName = node.attributes.Include;
+class PackageReference {
+  name: string = ''
+  version: string = ''
+  targetFramework: string = ''
+}
+
+class AssemblyReference {
+  assemblyName: string = ''
+  version: string | null = null
+  culture: string | null = null
+  processorArchitecture: string | null = null
+  publicKeyToken: string | null = null
+  hintPath: string | null = null
+}
+
+class Project {
+  references: AssemblyReference[] = []
+  codeFiles: CodeFile[] = []
+  packages: PackageReference[] = []
+}
+
+function parseCodeFile(node: parseXml.Node): CodeFile {
+  let fileName = node.attributes.Include;
 
   return {
     fileName: helpers.normalizePath(fileName)
   };
 };
 
-const parsePackageReference = (detail) => {
+function parsePackageReference(detail: parseXml.Node): PackageReference {
   return {
     name: detail.attributes.Include,
     version: detail.attributes.Version,
@@ -20,58 +43,52 @@ const parsePackageReference = (detail) => {
   };
 };
 
-const parseAssemblyReference = (node) => {
+function parseAssemblyReference(node: parseXml.Node): AssemblyReference {
   const parts = node.attributes.Include.split(/\, /g);
   const hintPathNode = node.children && node.children[0];
 
-  const result = {
-    assemblyName: parts[0],
-    version: null,
-    culture: null,
-    processorArchitecture: null,
-    publicKeyToken: null,
-    hintPath: null,
-  };
+  let result: AssemblyReference = new AssemblyReference();
+  result.assemblyName = parts[0];
 
-  for(let i = 1; i < parts.length; i++) {
+  for (let i = 1; i < parts.length; i++) {
     const asmPartKeyValue = parts[i].split(/=/g);
 
-    if(asmPartKeyValue.length === 2) {
-      if(asmPartKeyValue[0] === 'Version') {
+    if (asmPartKeyValue.length === 2) {
+      if (asmPartKeyValue[0] === 'Version') {
         result.version = asmPartKeyValue[1];
-      } else if(asmPartKeyValue[0] === 'Culture') {
+      } else if (asmPartKeyValue[0] === 'Culture') {
         result.culture = asmPartKeyValue[1];
-      } else if(asmPartKeyValue[0] === 'processorArchitecture') {
+      } else if (asmPartKeyValue[0] === 'processorArchitecture') {
         result.processorArchitecture = asmPartKeyValue[1];
-      } else if(asmPartKeyValue[0] === 'PublicKeyToken') {
+      } else if (asmPartKeyValue[0] === 'PublicKeyToken') {
         result.publicKeyToken = asmPartKeyValue[1];
       }
     }
   }
 
-  if(hintPathNode && hintPathNode.name === 'HintPath' && hintPathNode.content) {
+  if (hintPathNode && hintPathNode.name === 'HintPath' && hintPathNode.content) {
     result.hintPath = helpers.normalizePath(hintPathNode.content);
   }
 
   return result;
 };
 
-const parsePackages = (filePath) => {
+export function parsePackages(filePath: string): Promise<PackageReference[]> {
   return helpers.getFileContentsOrFail(filePath)
     .then(parsePackagesInternal);
 };
 
-const parsePackagesSync = (filePath) => {
-  const contents = helpers.getFileContentsOrFailSync(filePath);
+export function parsePackagesSync(filePath: string): PackageReference[] {
+  let contents = helpers.getFileContentsOrFailSync(filePath);
   return parsePackagesInternal(contents);
 };
 
-const parsePackagesInternal = (contents) => {
-  const xml = parseXml(contents);
+function parsePackagesInternal(contents: string) {
+  let xml: parseXml.Document = parseXml(contents);
 
-  return xml.root.children.reduce((data, packageNode) => {
+  return xml.root.children.reduce((data: PackageReference[], packageNode: parseXml.Node) => {
     if (packageNode.name === 'package') {
-      const parsedPackage = {
+      let parsedPackage: PackageReference = {
         name: packageNode.attributes.id,
         version: packageNode.attributes.version,
         targetFramework: packageNode.attributes.targetFramework,
@@ -84,25 +101,25 @@ const parsePackagesInternal = (contents) => {
   }, []);
 };
 
-const mergePackages = (projPackages, packages) => {
-  let result = [];
-  if (projPackages) {
-    result.push(...projPackages);
-  }
-  if (packages) {
-    result.push(...packages);
-  }
+// function mergePackages(projPackages, packages) {
+//   let result = [];
+//   if (projPackages) {
+//     result.push(...projPackages);
+//   }
+//   if (packages) {
+//     result.push(...packages);
+//   }
 
-  return result;
-};
+//   return result;
+// };
 
-const parseProject = (filePath, options) => {
+export function parseProject(filePath: string, options: helpers.ParseOptions): Promise<Project> {
   const providedOptions = options || {};
   return helpers.getFileContentsOrFail(filePath)
     .then(contents => {
-      const result = parseProjectInternal(contents);
+      let result: Project = parseProjectInternal(contents);
 
-      if(!providedOptions.deepParse) {
+      if (!providedOptions.deepParse) {
         return result;
       } else {
         const projDir = helpers.getFileDirectory(filePath, options);
@@ -124,43 +141,43 @@ const parseProject = (filePath, options) => {
     });
 };
 
-const parseProjectSync = (filePath, options) => {
+export function parseProjectSync(filePath: string, options: helpers.ParseOptions): Project {
   const providedOptions = options || {};
   const contents = helpers.getFileContentsOrFailSync(filePath);
   const result = parseProjectInternal(contents);
 
-  if(providedOptions.deepParse) {
-    const projDir = helpers.getFileDirectory(filePath, options);
-    const packagesLocation = path.join(projDir, 'packages.config');
+  if (providedOptions.deepParse) {
+    let projDir = helpers.getFileDirectory(filePath, options);
+    let packagesLocation = path.join(projDir, 'packages.config');
 
-    const packages = helpers.fileExistsSync(packagesLocation) && parsePackagesSync(packagesLocation);
+    let packages = helpers.fileExistsSync(packagesLocation) && parsePackagesSync(packagesLocation);
     result.packages = packages || [];
   }
 
   return result;
 };
 
-const parseProjectInternal = (contents) => {
-  const xml = parseXml(contents);
+function parseProjectInternal(contents: string) {
+  let xml: parseXml.Document = parseXml(contents);
 
   if (!xml || !xml.root) {
     throw new Error('No root element in project file');
   }
 
-  return xml.root.children.reduce((projectData, directChild) => {
+  return xml.root.children.reduce((projectData: Project, directChild:parseXml.Node) => {
     if (directChild.name === 'ItemGroup') {
       const children = directChild.children;
 
       // TODO: Sequential dynamic mapping instead of assuming all children are same
       if (children && children.length) {
         if (children[0].name === 'Reference') {
-          const refs = children.map(parseAssemblyReference);
+          let refs: AssemblyReference[] = children.map(parseAssemblyReference);
           projectData.references = projectData.references.concat(refs);
         } else if (children[0].name === 'Compile' && children[0].attributes.Include) {
-          const refs = children.map(parseCodeFile);
+          let refs: CodeFile[] = children.map(parseCodeFile);
           projectData.codeFiles = projectData.codeFiles.concat(refs);
         } else if (children[0].name === 'PackageReference') {
-          const refs = children.map(parsePackageReference);
+          let refs: PackageReference[] = children.map(parsePackageReference);
           projectData.packages = projectData.packages.concat(refs);
         }
       }
@@ -173,10 +190,3 @@ const parseProjectInternal = (contents) => {
     packages: [],
   });
 }
-
-module.exports = {
-  parseProjectSync,
-  parseProject,
-  parsePackagesSync,
-  parsePackages
-};
