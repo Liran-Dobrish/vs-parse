@@ -4,7 +4,7 @@ const chai = require('chai');
 const assert = chai.assert;
 const path = require('path');
 const fs = require('fs');
-const internal = require('../src/internal');
+const internal = require('../dist/src/internal');
 
 chai.use(require('chai-string'));
 

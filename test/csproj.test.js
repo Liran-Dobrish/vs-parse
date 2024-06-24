@@ -3,8 +3,8 @@
 const assert = require('chai').assert;
 const fs = require('fs-extra');
 const path = require('path');
-const csproj = require('../src/csproj');
-const helpers = require('../src/internal');
+const csproj = require('../dist/src/csproj');
+const helpers = require('../dist/src/internal');
 
 describe('csproj', () => {
   describe('#parseProjectSync()', () => {

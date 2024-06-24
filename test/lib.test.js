@@ -1,7 +1,7 @@
 'use strict';
 
 const assert = require('chai').assert;
-const lib = require('../src/lib');
+const lib = require('../dist/src/lib');
 
 describe('lib', () => {
 

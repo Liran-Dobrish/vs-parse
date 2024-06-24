@@ -3,7 +3,7 @@
 const assert = require('chai').assert;
 const fs = require('fs');
 const path = require('path');
-const sln = require('../src/sln');
+const sln = require('../dist/src/sln');
 
 const generateTestCases = () => {
   const inputCases = {
