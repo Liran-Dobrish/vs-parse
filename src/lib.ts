@@ -1,16 +1,14 @@
-'use strict';
+import * as semverUtils from 'semver-utils'
 
-const semverUtils = require('semver-utils');
-
-const nthIndexOfChar = (haystack, needle, n) => {
+function nthIndexOfChar(haystack: string, needle: string, n: number) {
   let count = 0;
 
-  for(let i = 0; i < haystack.length; i++) {
-    if(haystack[i] === needle) {
+  for (let i = 0; i < haystack.length; i++) {
+    if (haystack[i] === needle) {
       count++;
     }
 
-    if(count === n) {
+    if (count === n) {
       return i;
     }
   }
@@ -18,8 +16,8 @@ const nthIndexOfChar = (haystack, needle, n) => {
   return -1;
 }
 
-const parseSemverSync = (versionString) => {
-  if(!versionString) {
+export function parseSemverSync(versionString: string) {
+  if (!versionString) {
     return null;
   }
 
@@ -35,9 +33,4 @@ const parseSemverSync = (versionString) => {
     originalString: versionString,
     toString: () => parsed.version
   } : null;
-};
-
-
-module.exports = {
-  parseSemverSync,
 };

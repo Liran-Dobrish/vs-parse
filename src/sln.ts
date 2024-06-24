@@ -1,33 +1,47 @@
 'use strict';
 
-const path = require('path');
-const csproj = require('./csproj');
-const helpers = require('./internal');
+import * as path from 'path';
+import * as csproj from './csproj';
+import * as helpers from './internal';
 
-const parseMinimumVisualStudioVersion = (lineOfText) => {
-  const regex = /^MinimumVisualStudioVersion = (\d+(\.\d+){3})/;
-  const result = regex.exec(lineOfText);
+class ProjectReference {
+  id: string = ''
+  name: string = ''
+  relativePath: string = ''
+  projectTypeId: string = ''
+}
+
+class Sln {
+  fileFormatVersion: string = ''
+  visualStudioVersion: string = ''
+  minimumVisualStudioVersion: string = ''
+  projects: ProjectReference[] = []
+}
+
+function parseMinimumVisualStudioVersion(lineOfText: string): string | null {
+  let regex: RegExp = /^MinimumVisualStudioVersion = (\d+(\.\d+){3})/;
+  let result: RegExpExecArray | null = regex.exec(lineOfText);
 
   return result && result[1];
 };
 
-const parseVisualStudioVersion = (lineOfText) => {
-  const regex = /^VisualStudioVersion = (\d+(\.\d+){3})/;
-  const result = regex.exec(lineOfText);
+function parseVisualStudioVersion(lineOfText: string): string | null {
+  let regex: RegExp = /^VisualStudioVersion = (\d+(\.\d+){3})/;
+  let result: RegExpExecArray | null = regex.exec(lineOfText);
 
   return result && result[1];
 };
 
-const parseFileFormatVersion = (lineOfText) => {
-  const regex = /^Microsoft Visual Studio Solution File, Format Version (\d+\.\d+)/;
-  const result = regex.exec(lineOfText);
+function parseFileFormatVersion(lineOfText: string): string | null {
+  let regex: RegExp = /^Microsoft Visual Studio Solution File, Format Version (\d+\.\d+)/;
+  let result: RegExpExecArray | null = regex.exec(lineOfText);
 
   return result && result[1];
 };
 
-const parseSolutionProject = (lineOfText) => {
-  const regex = /^Project\("\{([A-Z0-9]{8}\-[A-Z0-9]{4}\-[A-Z0-9]{4}\-[A-Z0-9]{4}\-[A-Z0-9]{12})\}"\) = "([^"]+)", "([^"]+)", "\{([A-Z0-9]{8}\-[A-Z0-9]{4}\-[A-Z0-9]{4}\-[A-Z0-9]{4}\-[A-Z0-9]{12})\}"/;
-  const result = regex.exec(lineOfText);
+function parseSolutionProject(lineOfText: string): ProjectReference | undefined {
+  let regex: RegExp = /^Project\("\{([A-Z0-9]{8}\-[A-Z0-9]{4}\-[A-Z0-9]{4}\-[A-Z0-9]{4}\-[A-Z0-9]{12})\}"\) = "([^"]+)", "([^"]+)", "\{([A-Z0-9]{8}\-[A-Z0-9]{4}\-[A-Z0-9]{4}\-[A-Z0-9]{4}\-[A-Z0-9]{12})\}"/;
+  let result: RegExpExecArray | null = regex.exec(lineOfText);
 
   if (result) {
     return {
@@ -39,17 +53,17 @@ const parseSolutionProject = (lineOfText) => {
   }
 };
 
-const parseSolution = (filePath, options) => {
+export function parseSolution(filePath: string, options: helpers.ParseOptions) {
   const providedOptions = options || {};
   return helpers.getFileContentsOrFail(filePath)
     .then(contents => {
       const returnValue = parseSolutionInternal(contents);
 
-      if(providedOptions.deepParse) {
+      if (providedOptions.deepParse) {
         const slnDir = helpers.getFileDirectory(filePath, options);
 
         const projectPromises = returnValue.projects.map(project => {
-          if(project && project.relativePath) {
+          if (project && project.relativePath) {
             const projectLocation = path.join(slnDir, project.relativePath);
 
             return helpers.fileExists(projectLocation)
@@ -62,7 +76,7 @@ const parseSolution = (filePath, options) => {
         });
 
         return Promise.all(projectPromises).then(fullProjects => {
-          for(let i = 0; i < returnValue.projects.length; i++) {
+          for (let i = 0; i < returnValue.projects.length; i++) {
             const projectData = fullProjects[i];
             if (projectData) {
               returnValue.projects[i] = Object.assign({}, returnValue.projects[i], projectData);
@@ -77,24 +91,24 @@ const parseSolution = (filePath, options) => {
     });
 };
 
-const parseSolutionSync = (filePath, options) => {
+export function parseSolutionSync(filePath: string, options: helpers.ParseOptions) {
   const providedOptions = options || {};
   const contents = helpers.getFileContentsOrFailSync(filePath);
   const returnValue = parseSolutionInternal(contents);
 
-  if(providedOptions.deepParse) {
+  if (providedOptions.deepParse) {
     const slnDir = helpers.getFileDirectory(filePath, options);
 
-    for(let i = 0; i < returnValue.projects.length; i++) {
+    for (let i = 0; i < returnValue.projects.length; i++) {
       const project = returnValue.projects[i];
 
-      if(project && project.relativePath) {
+      if (project && project.relativePath) {
         const projectLocation = path.join(slnDir, project.relativePath);
 
-        if(helpers.fileExistsSync(projectLocation)) {
+        if (helpers.fileExistsSync(projectLocation)) {
           const projectData = csproj.parseProjectSync(projectLocation, providedOptions);
 
-          if(projectData) {
+          if (projectData) {
             returnValue.projects[i] = Object.assign({}, project, projectData);
           }
         }
@@ -105,42 +119,32 @@ const parseSolutionSync = (filePath, options) => {
   return returnValue;
 };
 
-const parseSolutionInternal = (contents) => {
+function parseSolutionInternal(contents: string): Sln {
   const lines = contents.replace(/(\r\n|\r)/g, '\n').split('\n');
 
-  const returnValue = {
-    fileFormatVersion: null,
-    visualStudioVersion: null,
-    minimumVisualStudioVersion: null,
-    projects: []
-  };
+  const returnValue:Sln = new Sln();
 
-  for(let i = 0; i < lines.length; i++) {
-    const solutionProject = parseSolutionProject(lines[i]);
-    if(solutionProject) {
+  for (let i = 0; i < lines.length; i++) {
+    let solutionProject: ProjectReference | undefined = parseSolutionProject(lines[i]);
+    if (solutionProject !== undefined) {
       returnValue.projects.push(solutionProject);
     }
 
     const fileFormatVersion = parseFileFormatVersion(lines[i]);
-    if(fileFormatVersion) {
+    if (fileFormatVersion) {
       returnValue.fileFormatVersion = fileFormatVersion;
     }
 
     const visualStudioVersion = parseVisualStudioVersion(lines[i]);
-    if(visualStudioVersion) {
+    if (visualStudioVersion) {
       returnValue.visualStudioVersion = visualStudioVersion;
     }
 
     const minimumVisualStudioVersion = parseMinimumVisualStudioVersion(lines[i]);
-    if(minimumVisualStudioVersion) {
+    if (minimumVisualStudioVersion) {
       returnValue.minimumVisualStudioVersion = minimumVisualStudioVersion;
     }
   }
 
   return returnValue;
 }
-
-module.exports = {
-  parseSolutionSync,
-  parseSolution
-};
