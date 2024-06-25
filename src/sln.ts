@@ -4,6 +4,10 @@ import * as path from 'path';
 import * as csproj from './csproj';
 import * as helpers from './internal';
 
+enum SlnProjectTypes {
+  SolutionFolder = '2150E333-8FDC-42A3-9474-1A3956D46DE8'
+}
+
 class ProjectReference {
   id: string = ''
   name: string = ''
@@ -63,7 +67,7 @@ export function parseSolution(filePath: string, options: helpers.ParseOptions) {
         const slnDir = helpers.getFileDirectory(filePath, options);
 
         const projectPromises = returnValue.projects.map(project => {
-          if (project && project.relativePath) {
+          if (project && project.relativePath && project.projectTypeId != SlnProjectTypes.SolutionFolder) {
             const projectLocation = path.join(slnDir, project.relativePath);
 
             return helpers.fileExists(projectLocation)
@@ -102,7 +106,7 @@ export function parseSolutionSync(filePath: string, options: helpers.ParseOption
     for (let i = 0; i < returnValue.projects.length; i++) {
       const project = returnValue.projects[i];
 
-      if (project && project.relativePath) {
+      if (project && project.relativePath && project.projectTypeId != SlnProjectTypes.SolutionFolder) {
         const projectLocation = path.join(slnDir, project.relativePath);
 
         if (helpers.fileExistsSync(projectLocation)) {
@@ -122,7 +126,7 @@ export function parseSolutionSync(filePath: string, options: helpers.ParseOption
 function parseSolutionInternal(contents: string): Sln {
   const lines = contents.replace(/(\r\n|\r)/g, '\n').split('\n');
 
-  const returnValue:Sln = new Sln();
+  const returnValue: Sln = new Sln();
 
   for (let i = 0; i < lines.length; i++) {
     let solutionProject: ProjectReference | undefined = parseSolutionProject(lines[i]);
