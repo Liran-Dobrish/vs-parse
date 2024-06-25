@@ -97,7 +97,7 @@ export function parseSolution(filePath: string, options: helpers.ParseOptions) {
 
 export function parseSolutionSync(filePath: string, options: helpers.ParseOptions) {
   const providedOptions = options || {};
-  const contents = helpers.getFileContentsOrFailSync(filePath);
+  const contents: string = helpers.getFileContentsOrFailSync(filePath);
   const returnValue = parseSolutionInternal(contents);
 
   if (providedOptions.deepParse) {
