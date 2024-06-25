@@ -1,10 +1,9 @@
 'use strict';
+import * as lib from './src/lib'
+import * as project from './src/csproj'
+import * as sln from './src/sln'
 
-const lib = require('./src/lib.js');
-const project = require('./src/csproj.js');
-const sln = require('./src/sln.js');
-
-module.exports = {
+export = {
   parseSemverSync: lib.parseSemverSync,
   parsePackages: project.parsePackages,
   parsePackagesSync: project.parsePackagesSync,
