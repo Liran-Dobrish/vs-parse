@@ -7,8 +7,8 @@ import { StringDecoder } from 'string_decoder'
 
 export class ParseOptions {
   deepParse: boolean = false
-  encoding: BufferEncoding = 'utf-8'
-  dirRoot: string | undefined = undefined
+  encoding?: BufferEncoding = 'utf-8'
+  dirRoot?: string | undefined = undefined
 }
 
 export function fileExistsSync(filePath: string): boolean {
@@ -68,7 +68,7 @@ export function getFileContentsOrFail(file: string, options: ParseOptions | unde
   });
 }
 
-export function getFileContentsOrFailSync(file: string, options: ParseOptions | undefined = undefined) {
+export function getFileContentsOrFailSync(file: string, options: ParseOptions | undefined = undefined): string {
   if (isVsFileContents(file)) {
     return file;
   }
@@ -84,7 +84,7 @@ export function getFileContentsOrFailSync(file: string, options: ParseOptions | 
   }
 
   try {
-    return fs.readFileSync(file, myOptions);
+    return fs.readFileSync(file, myOptions).toString();
   } catch (e) {
     if (typeof file === 'string' && !fileExistsSync(file)) {
       throw new Error('File not found: ' + file);
